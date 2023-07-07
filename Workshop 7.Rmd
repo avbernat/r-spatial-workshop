@@ -1,0 +1,120 @@
+---
+title: "Workshop 7 R GeoDa"
+author: "Anastasia Bernat"
+date: "11/19/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tips
+Use Cmd + option + i to embed a R code (```{r}) - R Markdown cheat sheet: https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf
+
+## Load and Explore Data 
+
+```{r}
+library(rgeoda)
+library(geodaData)
+library(sf)
+
+guerry_sf <- geodaData::guerry # classic social science foundational study by Andre-Michel Guerry on crime, suicide, etc.
+summary(guerry_sf)
+names(guerry_sf)
+str(guerry_sf)
+dim(guerry_sf)
+head(guerry_sf)
+st_crs(guerry_sf)
+
+```
+
+## Plot Data
+
+```{r}
+plot(guerry_sf)
+```
+
+## Metadata
+
+"Description
+
+Classic social science foundational study by Andre-Michel Guerry on crime, suicide, literacy and other “moral statistics” in 1830s France. Data from the R package Guerry (Michael Friendly and Stephane Dray)."
+
+```{r}
+?guerry
+```
+
+## Exploring Data More
+
+Can read shapefiles, csv's, etc. files directly with geoda_open
+If want to work on attributes work in sf and then move here after wards
+
+sf_to_geoda(guerry_sf, with_table = TRUE) # optimizing for autocorrelation, throw away all attributes except for geometry, but if you add with_table- = TRUE then you get all your attirbutes back. 
+
+```{r}
+guerry <- sf_to_geoda(guerry_sf, with_table = TRUE) # geoda object
+class(guerry) # rgeoda object, not normal data frame 
+
+# s-4 method - use a $ and tab and functions pop out
+
+guerry$table
+guerry$field_names
+guerry$map_type
+guerry$n_cols # can do this? 
+
+
+```
+
+## Calculate Queen Weights
+
+```{r}
+queen_w <- queen_weights(guerry)
+queen_w
+queen_w$density # series of methods or functions with the $
+queen_w$is_symmetric
+queen_w$SaveToFile("queen_weights.gal", "guerry", "CODE_DE", guerry$GetIntegerCol("CODE_DE")) 
+```
+ gal (geometrics algorithm lab - simple text file that continas, for each obs, the num of neighbors and their identifiers)
+ vs. gwt # path and, name of ID column
+ 
+```{r}
+class(queen_w) # weight object 
+
+rook_w <- rook_weights(guerry)
+rook_w
+# knn_weights(guerry)
+
+?queen_weights
+```
+
+## Local Moran
+
+```{r}
+crm_prp <- guerry_sf$Crm_prp
+crm_prp1 <- guerry$GetIntegerCol("crm_prp")
+lisa <- local_moran(queen_w, crm_prp) # apply local Moran statistics on attribute column 
+
+class(lisa) # LISA object
+lms <- lisa$GetLISAValues()
+lisa$GetPValues()
+
+# Go through clustering next week
+
+lisa_clusters <- lisa$GetClusterIndicators()
+lisa_colors <- lisa$GetColors()
+lisa_labels <- lisa$GetLabels()
+lisa_colors
+plot(st_geometry(guerry_sf), 
+     col=sapply(lisa_clusters, function(x){return(lisa_colors[[x+1]])}), 
+     border = "#333333", lwd=0.2)
+title(main = "Local Moran Map of Crm_prp")
+legend('bottomleft', legend = lisa_labels, fill = lisa_colors, border = "#eeeeee")
+
+# local_geary(queen_w, crm_prp) # ??? Used to calculate the statistics -  chapter 5
+# geary_crmprp<- lisa$GetClusterIndicators()
+```
+
+
+
+
